@@ -251,6 +251,7 @@ void setup() {
     // Write device id to leds
     int leds[4];
     utils::getLEDDigit(deviceId, leds);
+    for (int i = 0; i < 4; i++) digitalWrite(LED_PINS[i], LOW);
     for (int i = 0; i < 4; i++) digitalWrite(LED_PINS[i], leds[i]);
     if (deviceId == 0) analogWrite(LED_BUILTIN, 128);
     else digitalWrite(LED_BUILTIN, LOW);
