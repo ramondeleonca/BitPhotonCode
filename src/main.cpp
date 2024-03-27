@@ -227,7 +227,7 @@ void setup() {
     for (int i = 0; i < 4; i++) {
         Serial.println("Configuring pin " + String(LED_PINS[i]));
         pinMode(LED_PINS[i], OUTPUT);
-        analogWrite(LED_PINS[i], 128);
+        digitalWrite(LED_PINS[i], HIGH);
     }
 
     // Start serial
