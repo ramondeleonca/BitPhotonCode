@@ -223,6 +223,13 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t leng
 }
 
 void setup() {
+    // Configure all leds and initialize
+    for (int i = 0; i < 4; i++) {
+        Serial.println("Configuring pin " + String(LED_PINS[i]));
+        pinMode(LED_PINS[i], OUTPUT);
+        analogWrite(LED_PINS[i], 128);
+    }
+
     // Start serial
     Serial.begin(115200);
 
@@ -239,13 +246,6 @@ void setup() {
         Serial.println("Resetting device id to 0");
         preferences.putString("id", "0");
         deviceId = 0;
-    }
-
-    // Configure all leds
-    for (int i = 0; i < 4; i++) {
-        Serial.println("Configuring pin " + String(LED_PINS[i]));
-        pinMode(LED_PINS[i], OUTPUT);
-        digitalWrite(LED_PINS[i], LOW);
     }
 
     // Write device id to leds
