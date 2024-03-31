@@ -220,11 +220,13 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t leng
     switch(type) {
         case WStype_DISCONNECTED:
             Serial.printf("[%u] Disconnected!\n", num);
+            utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 0, 1);
             break;
         case WStype_CONNECTED:
             {
                 IPAddress ip = socket.remoteIP(num);
                 Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+                utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 25, 1);
             }
             break;
         case WStype_TEXT:
