@@ -29,8 +29,8 @@ const int UPDATE_INTERVAL = 200;
 
 //! FOR ESP32
 const int LED_PINS[4] = { 4, 16, 17, 5 };
-const int CAN_RX = 35;
-const int CAN_TX = 34;
+const int CAN_RX = 27;
+const int CAN_TX = 26;
 const int CAN_RATE = 500E3;
 
 //! FOR ESP32 S3
@@ -285,10 +285,12 @@ void setup() {
         Serial.println("CAN started");
         utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 25, 2);
         
-        CAN.beginPacket(deviceId);
+        Serial.println("Sending startup packet");
+        CAN.beginExtendedPacket(deviceId);
         CAN.write('u');
         CAN.write('p');
         CAN.endPacket();
+        Serial.println("Packet sent");
     } else {
         Serial.println("CAN failed to start");
         utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 0, 1);
