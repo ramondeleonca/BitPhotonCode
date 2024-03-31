@@ -9,6 +9,10 @@
 #include <WebSocketsServer.h>
 #include <BH1750.h>
 #include <Wire.h>
+#include <CAN.h>
+
+// Debug mode
+#define DEBUG_BIT_DEVICE true
 
 // Global variables
 int deviceId = 0;
@@ -24,7 +28,10 @@ const int SOCKET_PORT = 81;
 const int UPDATE_INTERVAL = 200;
 
 //! FOR ESP32
-const int LED_PINS[4] = { 5, 17, 16, 4 };
+const int LED_PINS[4] = { 4, 16, 17, 5 };
+const int CAN_RX = 35;
+const int CAN_TX = 34;
+const int CAN_RATE = 500E3;
 
 //! FOR ESP32 S3
 // const int LED_PINS[4] = { 36, 37, 38, 39 };
@@ -45,6 +52,9 @@ DeviceState state;
 // Sensors
 BH1750 lightSensor;
 
+// LED states
+int ledIdStates[4];
+
 class wifi {
     public:
         static wl_status_t connect() {
@@ -61,6 +71,7 @@ class wifi {
                     Serial.println("Successfully connected to wifi");
                     Serial.println("WIFI/IP: " + WiFi.localIP().toString());
                     Serial.println("WIFI/MAC: " + WiFi.macAddress());
+                    utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 0, 4);
                 } else {
                     Serial.println("Failed to connect to wifi");
                 }
@@ -74,6 +85,7 @@ class wifi {
         static void disconnect() {
             if (WiFi.disconnect()) {
                 Serial.println("Disconnected from wifi");
+                utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 0, 1);
             } else {
                 Serial.println("Failed to disconnect from wifi");
             }
@@ -92,6 +104,8 @@ class ap {
             bool result = WiFi.softAP(String(PRODUCT_NAME + "-" + deviceId).c_str());
             Serial.println("AP/IP: " + WiFi.softAPIP().toString());
             Serial.println("AP/MAC: " + WiFi.softAPmacAddress());
+            if (result) utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 0, 2);
+            else utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 0, 1);
             return result;
         }
 
@@ -187,7 +201,7 @@ class Commands {
 
         static void get_ip() {
             Serial.println(WiFi.localIP().toString());
-        }
+        } 
 
         static void get_mac() {
             Serial.println(WiFi.macAddress());
@@ -223,11 +237,17 @@ void onWebSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t leng
 }
 
 void setup() {
+    // Wait for ESP to bootup
+    delay(500);
+    
+    // Configure logging to supress dumb HAL errors 🙃
+    esp_log_level_set("gpio", ESP_LOG_NONE);
+
     // Configure all leds and initialize
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < sizeof(LED_PINS) / sizeof(LED_PINS[0]); i++) {
         Serial.println("Configuring pin " + String(LED_PINS[i]));
         pinMode(LED_PINS[i], OUTPUT);
-        digitalWrite(LED_PINS[i], HIGH);
+        digitalWrite(LED_PINS[i], LOW);
     }
 
     // Start serial
@@ -249,16 +269,30 @@ void setup() {
     }
 
     // Write device id to leds
-    int leds[4];
-    utils::getLEDDigit(deviceId, leds);
-    for (int i = 0; i < 4; i++) digitalWrite(LED_PINS[i], LOW);
-    for (int i = 0; i < 4; i++) digitalWrite(LED_PINS[i], leds[i]);
+    utils::getLEDDigit(deviceId, ledIdStates);
+    for (int i = 0; i < sizeof(LED_PINS) / sizeof(LED_PINS[0]); i++) digitalWrite(LED_PINS[i], LOW);
+    for (int i = 0; i < sizeof(LED_PINS) / sizeof(LED_PINS[0]); i++) digitalWrite(LED_PINS[i], ledIdStates[i]);
     if (deviceId == 0) analogWrite(LED_BUILTIN, 128);
     else digitalWrite(LED_BUILTIN, LOW);
 
     // Start device functionality
     Wire.begin();
     lightSensor.begin(BH1750::CONTINUOUS_HIGH_RES_MODE);
+
+    // Configure CAN
+    CAN.setPins(CAN_RX, CAN_TX);
+    if (CAN.begin(CAN_RATE)) {
+        Serial.println("CAN started");
+        utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 25, 2);
+        
+        CAN.beginPacket(deviceId);
+        CAN.write('u');
+        CAN.write('p');
+        CAN.endPacket();
+    } else {
+        Serial.println("CAN failed to start");
+        utils::blinkLEDs(ledIdStates, LED_PINS, sizeof(LED_PINS) / sizeof(LED_PINS[0]), 250, 0, 1);
+    }
     
     // Configure state
     state.diskUsage = (float)ESP.getSketchSize() / (float)ESP.getFlashChipSize();
@@ -270,7 +304,9 @@ void setup() {
 
     // Start wifi
     try {
-        if (wifi::connect() != WL_CONNECTED) throw std::runtime_error("Failed to connect to wifi");
+        if (wifi::connect() == WL_CONNECTED) {
+            Serial.println("Connected to wifi");
+        } else throw std::runtime_error("Failed to connect to wifi");
     } catch (const std::exception& e) {
         Serial.println("An error occurred: " + String(e.what()));
         Serial.println("Starting AP mode");

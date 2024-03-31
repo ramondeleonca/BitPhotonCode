@@ -111,4 +111,24 @@ class utils {
                 ledStates[3] = LOW;
             }
         }
+
+        static void blinkLEDs(int ledStates[], const int ledPins[], int leds, int delayTime, int delayBetween = 0, int times = 1) {
+            for (int j = 0; j < leds; j++) {
+                pinMode(ledPins[j], OUTPUT);
+                digitalWrite(ledPins[j], LOW);
+            }
+            for (int i = 0; i < times; i++) {
+                for (int j = 0; j < leds; j++) {
+                    digitalWrite(ledPins[j], HIGH);
+                    delay(delayBetween);
+                }
+                delay(delayTime);
+                for (int j = 0; j < 4; j++) {
+                    digitalWrite(ledPins[j], LOW);
+                    delay(delayBetween);
+                }
+                delay(delayTime);
+            }
+            for (int j = 0; j < leds; j++) digitalWrite(ledPins[j], ledStates[j]);
+        }
 };
